@@ -1,4 +1,4 @@
-import { Navigate, Outlet, createBrowserRouter } from "react-router-dom"
+import { Navigate, Outlet, createBrowserRouter, redirect, useNavigate, useNavigation } from "react-router-dom"
 import { Home } from "./pages/Home"
 import { Store } from "./pages/Store"
 import { About } from "./pages/About"
@@ -21,11 +21,23 @@ export const router = createBrowserRouter([
             {
                 path: "/team",
                 element: <TeamNavLayout />,
-                loader: ({ request: {signal} }) =>
-                    fetch("https://jsonplaceholder.typicode.com/users", { signal }),
+                loader: ({ request: { signal } }) =>
+                    fetch("https://jsonplaceholder.typicode.com/users?_limit=2", {//look ?_limit=2 will gave only 2 team members
+                        signal,
+                    }),
                 children: [
                     { index: true, element: <Team /> },
-                    { path: ":memberId", element: <TeamMember /> },
+                    {
+                        path: ":memberId",
+                        loader: ({params, request: { signal }}) =>
+                            fetch(`https://jsonplaceholder.typicode.com/users/${params.memberId}`, { signal })
+                            .then( res => {//solve redirect when user not exist
+                                if(res.status === 200) return res.json()
+
+                                throw redirect("/team")
+                            }),
+                        element: <TeamMember />,
+                    },
                     { path: "new", element: <NewTeamMember /> }, //router is more specific and be call first before :memberId
                 ],
             },
@@ -34,10 +46,12 @@ export const router = createBrowserRouter([
 ])
 
 function NavLayout() {
+    const {state} = useNavigation()//this gave you possibility to add control of text in loading faze, slow loading example
+    
     return (
         <>
             <Navbar />
-            <Outlet />
+            {state === "loading"? <h1>Loading...</h1> : <Outlet />}
         </>
     )
 }
